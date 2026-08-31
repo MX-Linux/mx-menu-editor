@@ -1,10 +1,15 @@
-Copyright (2014-2026) by Adrian; MX Linux <http://mxlinux.org>
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: mx-menu-editor
+Source: https://github.com/AdrianTM/mx-menu-editor
 
-and released under the GPL 3
-
+Files: *
+Copyright: 2014-2026 Adrian, MX Linux <http://mxlinux.org>
+License: GPL-3
 
 Files: debian/*
+Copyright: 2014-2026 Steven Pusser <stevep@mxlinux.org>
+License: GPL-3
 
-Packaging copyright 2014-2026 by Steven Pusser [stevep@mxlinux.org]
-
-and is released under the GPL 3 license.
+License: GPL-3
+ On Debian systems, the complete text of the GNU General Public
+ License version 3 can be found in "/usr/share/common-licenses/GPL-3".
