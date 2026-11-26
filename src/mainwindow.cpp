@@ -1125,6 +1125,11 @@ bool MainWindow::pushSave_clicked()
         return false;
     }
 
+    // The Save shortcut can fire while a Quick Editor field still has focus.
+    // Finish that edit exactly as clicking the Save button would.
+    if (ui->lineEditName->hasFocus() || ui->lineEditCommand->hasFocus() || ui->lineEditComment->hasFocus()) {
+        ui->pushSave->setFocus(Qt::ShortcutFocusReason);
+    }
     const QString editorText = ui->advancedEditor->toPlainText();
     QString execCommand = ui->lineEditCommand->text().trimmed();
     const QRegularExpressionMatch execMatch = regexExecFull.match(editorText);
