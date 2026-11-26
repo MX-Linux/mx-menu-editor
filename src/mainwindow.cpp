@@ -905,7 +905,11 @@ void MainWindow::changeComment()
     if (!newComment.isEmpty()) {
         text = DesktopUtils::setEntryValue(text, regexCommentFull, QStringLiteral("Comment"), newComment);
     } else {
-        text.remove(regexCommentFull);
+        const auto match = regexCommentFull.match(text);
+        if (match.hasMatch()) {
+            const auto lineStart = match.capturedEnd(1);
+            text.remove(lineStart, match.capturedEnd() - lineStart);
+        }
     }
     ui->advancedEditor->setText(text);
 }
