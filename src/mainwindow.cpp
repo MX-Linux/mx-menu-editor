@@ -454,6 +454,7 @@ void MainWindow::loadApps()
         // Restore previous selection if save was cancelled
         auto *itemToRestore = current_item;
         if (itemToRestore != nullptr) {
+            const QSignalBlocker blocker(ui->treeWidget);
             ui->treeWidget->setCurrentItem(itemToRestore);
         }
         return;
