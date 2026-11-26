@@ -278,15 +278,14 @@ void MainWindow::populateCategory(QTreeWidgetItem *categoryItem)
     }
     const QString searchString = searchPatterns.join(QLatin1Char('|'));
 
-    bool usrListError = false;
-    bool localListError = false;
-    auto usrDesktopFiles
-        = listDesktopFiles(searchString, systemApplicationsPath(), &usrListError);
-    auto localDesktopFiles
-        = listDesktopFiles(searchString, localApplicationsPath(), &localListError);
-
-    usrDesktopFiles.append(includesUsr);
-    localDesktopFiles.append(includesLocal);
+    QStringList usrDesktopFiles = includesUsr;
+    QStringList localDesktopFiles = includesLocal;
+    if (!searchString.isEmpty()) {
+        usrDesktopFiles.append(listDesktopFiles(searchString, systemApplicationsPath()));
+        localDesktopFiles.append(listDesktopFiles(searchString, localApplicationsPath()));
+    }
+    usrDesktopFiles.removeDuplicates();
+    localDesktopFiles.removeDuplicates();
 
     for (const auto &baseName : std::as_const(excludes)) {
         usrDesktopFiles.removeAll(systemApplicationsPath() + "/" + baseName);
