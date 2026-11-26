@@ -34,6 +34,8 @@
 
 #include "addappdialog.h"
 
+class QTextStream;
+
 namespace Ui
 {
 class MainWindow;
@@ -110,6 +112,7 @@ private slots:
     bool pushSave_clicked();
 
 private:
+    QStringList readMenuRules(QTextStream &in, const QString &localDirectories);
     AddAppDialog *add;
     QString advancedEditorBaseline;
     QSettings settings;

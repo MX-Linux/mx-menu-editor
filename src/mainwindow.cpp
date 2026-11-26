@@ -154,83 +154,90 @@ void MainWindow::loadMenuFiles()
     resetInterface();
     ui->treeWidget->clear();
 
-    const QString &homePath = QDir::homePath();
+    const QString localDirectories = QDir::homePath() + UserDesktopDirectories;
     QStringList menuItems;
-    const QStringList &menuFiles = listMenuFiles();
-
-    // process each menu_file
-    for (const auto &fileName : menuFiles) {
+    for (const auto &fileName : listMenuFiles()) {
         QFile file(fileName);
         if (file.open(QIODevice::ReadOnly)) {
             QTextStream in(&file);
-            while (!in.atEnd()) {
-                auto line = in.readLine();
-                QString name;
-                if (line.contains(QLatin1String("<Name>"))) {
-                    if (!in.atEnd()) {
-                        line = in.readLine();
-                        if (line.contains(QLatin1String("<Directory>"))) {
-                            line = line.remove(QStringLiteral("<Directory>"))
-                                       .remove(QStringLiteral("</Directory>"))
-                                       .trimmed();
-                            auto fName = homePath + UserDesktopDirectories + line;
-                            if (!QFileInfo::exists(fName)) { // use /usr if the file is not present in ~/.local
-                                fName = SystemDesktopDirectories + line;
-                            }
-                            name = getCatName(fName); // get the Name= from .directory file
-                            if (!name.isEmpty() && QLatin1String("Other") != name && QLatin1String("Wine") != name) {
-                                menuItems << name;
-                            }
-                            // Find <Category> and <Filename> and add them in hashCategory and hashInclude
-                            while (!(in.atEnd() || line.contains(QLatin1String("</Include>")))) {
-                                line = in.readLine();
-                                if (line.contains(QLatin1String("<Category>"))) {
-                                    line = line.remove(QStringLiteral("<Category>"))
-                                               .remove(QStringLiteral("</Category>"))
-                                               .trimmed();
-                                    if (!hashCategories.values(name).contains(line)) {
-                                        hashCategories.insert(
-                                            name, line); // each menu category displays a number of categories
-                                    }
-                                }
-                                if (line.contains(QLatin1String("<Filename>"))) {
-                                    line = line.remove(QStringLiteral("<Filename>"))
-                                               .remove(QStringLiteral("</Filename>"))
-                                               .trimmed();
-                                    if (!hashInclude.values(name).contains(line)) {
-                                        hashInclude.insert(name, line); // each menu category contains a number of files
-                                    }
-                                }
-                            }
-                             // find <Excludes> and add them in hashExclude
-                            while (!(in.atEnd() || line.contains(QLatin1String("</Exclude>"))
-                                     || line.contains(QLatin1String("<Menu>")))) {
-                                line = in.readLine();
-                                if (line.contains(QLatin1String("<Exclude>"))) {
-                                    while (!(in.atEnd() || line.contains(QLatin1String("</Exclude>")))) {
-                                        line = in.readLine();
-                                        if (line.contains(QLatin1String("<Filename>"))) {
-                                            line = line.remove(QStringLiteral("<Filename>"))
-                                                       .remove(QStringLiteral("</Filename>"))
-                                                       .trimmed();
-                                            if (!hashExclude.values(name).contains(line)) {
-                                                hashExclude.insert(
-                                                    name, line); // each menu category contains a number of files
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            file.close();
+            menuItems.append(readMenuRules(in, localDirectories));
         }
     }
     displayList(menuItems);
     populateAllCategories();
     filterTree(ui->lineEditSearch->text());
+}
+
+QStringList MainWindow::readMenuRules(QTextStream &in, const QString &localDirectories)
+{
+    enum class Rule { None, Include, Exclude };
+    struct Menu {
+        QString category;
+        Rule rule = Rule::None;
+        bool skipped = false;
+    };
+    QList<Menu> menus;
+    QStringList menuItems;
+    while (!in.atEnd()) {
+        QString line = in.readLine().section(QStringLiteral("<!--"), 0, 0).trimmed();
+        if (line == QLatin1String("<Menu>")) {
+            Menu child;
+            if (!menus.isEmpty()) {
+                child.skipped = menus.last().skipped;
+                // Nested folders display in their top-level category.
+                if (menus.size() > 1) {
+                    child.category = menus.last().category;
+                }
+            }
+            menus.append(child);
+            continue;
+        }
+        if (menus.isEmpty()) {
+            continue;
+        }
+        if (line == QLatin1String("</Menu>")) {
+            menus.removeLast();
+            continue;
+        }
+
+        auto &menu = menus.last();
+        if (menu.skipped) {
+            continue;
+        }
+        if (line.startsWith(QLatin1String("<Directory>"))) {
+            const auto directory = line.section('>', 1, 1).section('<', 0, 0).trimmed();
+            QString path = QDir(localDirectories).filePath(directory);
+            if (!QFileInfo::exists(path)) {
+                path = QDir(SystemDesktopDirectories).filePath(directory);
+            }
+            const auto name = getCatName(path);
+            menu.skipped = name == QLatin1String("Wine") || name == QLatin1String("Other");
+            if (!menu.skipped && menu.category.isEmpty() && !name.isEmpty()) {
+                menu.category = name;
+                menuItems.append(name);
+            }
+        } else if (line == QLatin1String("<Include>")) {
+            menu.rule = Rule::Include;
+        } else if (line == QLatin1String("<Exclude>")) {
+            menu.rule = Rule::Exclude;
+        } else if (line == QLatin1String("</Include>") || line == QLatin1String("</Exclude>")) {
+            menu.rule = Rule::None;
+        } else if (!menu.category.isEmpty() && menu.rule != Rule::None) {
+            if (menu.rule == Rule::Include && line.contains(QLatin1String("<Category>"))) {
+                line = line.remove(QStringLiteral("<Category>")).remove(QStringLiteral("</Category>")).trimmed();
+                if (!hashCategories.contains(menu.category, line)) {
+                    hashCategories.insert(menu.category, line);
+                }
+            } else if (line.contains(QLatin1String("<Filename>"))) {
+                line = line.remove(QStringLiteral("<Filename>")).remove(QStringLiteral("</Filename>")).trimmed();
+                auto &files = menu.rule == Rule::Include ? hashInclude : hashExclude;
+                if (!files.contains(menu.category, line)) {
+                    files.insert(menu.category, line);
+                }
+            }
+        }
+    }
+    return menuItems;
 }
 
 void MainWindow::populateAllCategories()
