@@ -80,7 +80,6 @@ constexpr auto UserMenuPath = "/.config/menus";
 constexpr auto UserDesktopDirectories = "/.local/share/desktop-directories/";
 
 // Cached regex patterns to avoid repeated construction
-const QRegularExpression regexTrailingSemicolon(QStringLiteral(";$"));
 const QRegularExpression regexNotFilter(QStringLiteral("^(?!<Not>).*$"));
 }
 
@@ -740,8 +739,7 @@ void MainWindow::loadItem(QTreeWidgetItem *item, int /*unused*/)
 
             if (line.startsWith(QLatin1String("Categories="))) {
                 line = line.section(QStringLiteral("="), 1);
-                line.remove(regexTrailingSemicolon);
-                QStringList categories = line.trimmed().split(QStringLiteral(";"));
+                const auto categories = line.trimmed().split(';', Qt::SkipEmptyParts);
                 ui->listWidgetEditCategories->addItems(categories);
             } else if (line.startsWith(QLatin1String("Name="))) {
                 line = line.section(QStringLiteral("="), 1).trimmed();
@@ -946,7 +944,6 @@ void MainWindow::enableDelete()
 
 void MainWindow::delCategory()
 {
-    ui->pushSave->setEnabled(true);
     const int row = ui->listWidgetEditCategories->currentRow();
     QScopedPointer<QListWidgetItem> item(ui->listWidgetEditCategories->takeItem(row));
     if (item.isNull()) {
@@ -959,7 +956,6 @@ void MainWindow::delCategory()
         DesktopUtils::setEntryValue(text, QStringLiteral("Categories"), categories.join(';') + ';'));
     if (ui->listWidgetEditCategories->count() == 0) {
         ui->pushDelete->setDisabled(true);
-        ui->pushSave->setDisabled(true);
     }
 }
 
@@ -1108,6 +1104,13 @@ bool MainWindow::pushSave_clicked()
         ui->pushSave->setFocus(Qt::ShortcutFocusReason);
     }
     const QString editorText = ui->advancedEditor->toPlainText();
+    const auto categories = DesktopUtils::entryValue(editorText, QStringLiteral("Categories"));
+    // Existing launchers included by filename can legitimately have no categories.
+    if (categories.split(';', Qt::SkipEmptyParts).isEmpty()
+        && categories != DesktopUtils::entryValue(advancedEditorBaseline, QStringLiteral("Categories"))) {
+        QMessageBox::warning(this, tr("Error"), tr("Choose category"));
+        return false;
+    }
     const QString execCommand = DesktopUtils::entryValue(editorText, QStringLiteral("Exec"));
 
     // Validate the Exec command before saving
