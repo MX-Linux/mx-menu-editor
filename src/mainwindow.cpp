@@ -289,7 +289,8 @@ void MainWindow::populateCategory(QTreeWidgetItem *categoryItem)
     for (const auto &localName : std::as_const(localDesktopFiles)) {
         QFileInfo fiLocal(localName);
         auto *app = addToTree(categoryItem, localName);
-        if (app != nullptr && all_usr_desktop_files.contains(systemApplicationsPath() + "/" + fiLocal.fileName())) {
+        if (app != nullptr && fiLocal.path() == localApplicationsPath()
+            && all_usr_desktop_files.contains(systemApplicationsPath() + "/" + fiLocal.fileName())) {
             app->setData(0, Qt::UserRole, "restore");
         }
     }
@@ -326,8 +327,8 @@ void MainWindow::insertAppIntoCategories(const QString &filePath, const QStringL
 
         for (int j = 0; j < categoryItem->childCount(); ++j) {
             auto *child = categoryItem->child(j);
-            QFileInfo childInfo(child->text(1));
-            if (childInfo.fileName() == baseName) {
+            const auto childPath = child->text(1);
+            if (childPath == filePath || childPath == systemApplicationsPath() + "/" + baseName) {
                 if (child == current_item) {
                     resetInterface();
                 }
@@ -453,7 +454,9 @@ void MainWindow::updateLocalBasenamesCache()
     local_basenames_cache.clear();
     for (const auto &localName : std::as_const(all_local_desktop_files)) {
         QFileInfo fLocal(localName);
-        local_basenames_cache.insert(fLocal.fileName());
+        if (fLocal.path() == localApplicationsPath()) {
+            local_basenames_cache.insert(fLocal.fileName());
+        }
     }
 }
 
@@ -554,7 +557,7 @@ void MainWindow::updateRestoreButtonState(const QString &fileName)
     const QString baseName = QFileInfo(fileName).fileName();
     const QString localPrefix = localApplicationsPath() + "/";
     const bool isLocal = fileName.startsWith(localPrefix);
-    const bool hasUsrCopy = QFile::exists(systemApplicationsPath() + "/" + baseName);
+    const bool hasUsrCopy = fileName == localPrefix + baseName && QFile::exists(systemApplicationsPath() + "/" + baseName);
 
     if (isLocal && hasUsrCopy) {
         ui->pushRestoreApp->setText(tr("Restore original item"));
@@ -1083,7 +1086,7 @@ void MainWindow::onCustomAppSaved(const QString &path, const QStringList &catego
     }
     insertAppIntoCategories(path, categories);
     filterTree(ui->lineEditSearch->text());
-    findReloadItem(QFileInfo(path).fileName());
+    findReloadItem(path);
 }
 
 bool MainWindow::pushSave_clicked()
@@ -1114,7 +1117,7 @@ bool MainWindow::pushSave_clicked()
         QMessageBox::critical(this, tr("Error"), tr("Could not create the applications directory"));
         return false;
     }
-    const auto out_name = applicationsDir + "/" + base_name;
+    const auto out_name = file_name.startsWith(applicationsDir + "/") ? file_name : applicationsDir + "/" + base_name;
     const QByteArray contents = editorText.toUtf8();
     QSaveFile out(out_name);
     if (!out.open(QIODevice::WriteOnly) || out.write(contents) != contents.size() || !out.commit()) {
@@ -1138,7 +1141,7 @@ bool MainWindow::pushSave_clicked()
     }
     restartPanel();
     ui->pushSave->setDisabled(true);
-    findReloadItem(base_name);
+    findReloadItem(out_name);
     return true;
 }
 
@@ -1264,8 +1267,10 @@ void MainWindow::pushRestoreApp_clicked()
     const QFileInfo fi(file_name);
     const auto base_name = fi.fileName();
     const auto applicationsDir = localApplicationsPath();
-    const auto localPath = applicationsDir + "/" + base_name;
-    QFile file(localPath);
+    if (!file_name.startsWith(applicationsDir + "/")) {
+        return;
+    }
+    QFile file(file_name);
     if (file.exists() && !file.remove()) {
         QMessageBox::critical(this, tr("Error"), tr("Could not restore the application: %1").arg(file.errorString()));
         return;
@@ -1278,7 +1283,9 @@ void MainWindow::pushRestoreApp_clicked()
         populateAllCategories();
     }
     filterTree(ui->lineEditSearch->text());
-    findReloadItem(base_name);
+    if (fi.path() == applicationsDir) {
+        findReloadItem(systemApplicationsPath() + "/" + base_name);
+    }
 }
 
 // copy the current item to a new, independently-editable .desktop file
@@ -1316,54 +1323,18 @@ void MainWindow::pushDuplicateApp_clicked()
 
     restartPanel();
     filterTree(ui->lineEditSearch->text());
-    findReloadItem(QFileInfo(out_name).fileName());
+    findReloadItem(out_name);
 }
 
 // find and reload item
-void MainWindow::findReloadItem(const QString &baseName)
+void MainWindow::findReloadItem(const QString &filePath)
 {
-    const auto localPath = localApplicationsPath() + "/" + baseName;
-    const auto usrPath = systemApplicationsPath() + "/" + baseName;
-
     QTreeWidgetItemIterator it(ui->treeWidget);
-    while ((*it) != nullptr) {
-        auto *item = *it;
-        QFileInfo fi(item->text(1));
-        if ((fi.fileName() == baseName)) {
-            if (QFileInfo::exists(localPath)) {
-                item->setText(1, localPath);
-                item->setData(0, Qt::UserRole, "restore");
-                ui->treeWidget->setCurrentItem(item);
-
-                // Ensure parent category is expanded so the item is visible
-                auto *parent = item->parent();
-                if (parent != nullptr) {
-                    parent->setExpanded(true);
-                }
-            } else if (QFileInfo::exists(usrPath)) {
-                item->setText(1, usrPath);
-                item->setData(0, Qt::UserRole, QVariant());
-                ui->treeWidget->setCurrentItem(item);
-
-                // Ensure parent category is expanded so the item is visible
-                auto *parent = item->parent();
-                if (parent != nullptr) {
-                    parent->setExpanded(true);
-                }
-            } else {
-                // Item doesn't exist anywhere, delete it from tree
-                auto *parent = item->parent();
-                if (parent != nullptr) {
-                    // Select parent before deleting the item
-                    ui->treeWidget->setCurrentItem(parent);
-                    const int idx = parent->indexOfChild(item);
-                    delete parent->takeChild(idx);
-                    current_item = nullptr;
-                    resetInterface();
-                }
-            }
-            filterTree(ui->lineEditSearch->text());
-            return;
+    while (auto *item = *it) {
+        if (item->text(1) == filePath) {
+            item->parent()->setExpanded(true);
+            ui->treeWidget->setCurrentItem(item);
+            break;
         }
         ++it;
     }

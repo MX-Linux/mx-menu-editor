@@ -67,7 +67,7 @@ public:
                                                      bool useCopyName = false);
     void displayList(QStringList menuItems);
     void filterTree(const QString &query);
-    void findReloadItem(const QString &baseName);
+    void findReloadItem(const QString &filePath);
     void loadMenuFiles();
     void updateRestoreButtonState(const QString &fileName);
     void populateAllCategories();
