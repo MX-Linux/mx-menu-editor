@@ -36,10 +36,9 @@
 // Kept free of QWidget/QObject so they can be exercised directly by CTest.
 namespace DesktopUtils
 {
-// Sets a single-line "Key=Value" entry in desktop-entry text, replacing the first
-// existing line for that key or appending a freshly-formatted one if absent.
-[[nodiscard]] QString setEntryValue(QString text, const QRegularExpression &fullKeyRegex, const QString &key,
-                                     const QString &value);
+// Read or edit a key in the main [Desktop Entry] group. A null value removes the key.
+[[nodiscard]] QString entryValue(const QString &text, const QString &key);
+[[nodiscard]] QString setEntryValue(const QString &text, const QString &key, const QString &value);
 
 // Picks the best display name given a set of candidate locale keys, most preferred
 // first: a localized "Name[locale]=" matching one of the keys, falling back to the

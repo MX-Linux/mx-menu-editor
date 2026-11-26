@@ -36,6 +36,7 @@ private slots:
     // DesktopUtils::setEntryValue - desktop key mutation
     void setEntryValue_replacesExistingKey();
     void setEntryValue_appendsWhenKeyMissing();
+    void editMainGroupOnly();
 
     // DesktopUtils::categoryMatchPattern - exact category matching
     void categoryMatchPattern_data();
@@ -71,18 +72,28 @@ private slots:
 
 void TestDesktopUtils::setEntryValue_replacesExistingKey()
 {
-    const QRegularExpression nameFull(QStringLiteral("(^|\n)Name=[^\n]*(\n|$)"));
     const QString text = QStringLiteral("[Desktop Entry]\nName=Old\nExec=foo\n");
-    const QString result = DesktopUtils::setEntryValue(text, nameFull, QStringLiteral("Name"), QStringLiteral("New"));
+    const QString result = DesktopUtils::setEntryValue(text, QStringLiteral("Name"), QStringLiteral("New"));
     QCOMPARE(result, QStringLiteral("[Desktop Entry]\nName=New\nExec=foo\n"));
 }
 
 void TestDesktopUtils::setEntryValue_appendsWhenKeyMissing()
 {
-    const QRegularExpression nameFull(QStringLiteral("(^|\n)Name=[^\n]*(\n|$)"));
     const QString text = QStringLiteral("[Desktop Entry]\nExec=foo");
-    const QString result = DesktopUtils::setEntryValue(text, nameFull, QStringLiteral("Name"), QStringLiteral("Fresh"));
+    const QString result = DesktopUtils::setEntryValue(text, QStringLiteral("Name"), QStringLiteral("Fresh"));
     QCOMPARE(result, QStringLiteral("[Desktop Entry]\nExec=foo\nName=Fresh\n"));
+}
+
+void TestDesktopUtils::editMainGroupOnly()
+{
+    const QString actions = "[Desktop Action New]\nName=New\nIcon=action\n";
+    const QString entry = "[Desktop Entry]\nName=App\n";
+    QCOMPARE(DesktopUtils::setEntryValue(entry + actions, "Icon", "main"), entry + "Icon=main\n" + actions);
+    QCOMPARE(DesktopUtils::setEntryValue(entry + actions, "Icon", QString()), entry + actions);
+    QCOMPARE(DesktopUtils::setEntryValue(entry + actions, "Name", QString()), "[Desktop Entry]\n" + actions);
+    QCOMPARE(DesktopUtils::entryValue(entry + actions, "Name"), "App");
+    QVERIFY(DesktopUtils::entryValue(entry + actions, "Icon").isEmpty());
+    QCOMPARE(DesktopUtils::setEntryValue(actions, "Name", "Changed"), actions);
 }
 
 void TestDesktopUtils::categoryMatchPattern_data()

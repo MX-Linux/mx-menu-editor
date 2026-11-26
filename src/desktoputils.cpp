@@ -29,19 +29,67 @@
 
 #include <algorithm>
 
-QString DesktopUtils::setEntryValue(QString text, const QRegularExpression &fullKeyRegex, const QString &key,
-                                     const QString &value)
+namespace
 {
-    const QRegularExpressionMatch match = fullKeyRegex.match(text);
-    const int index = match.capturedStart();
-    const int length = match.capturedLength();
-    if (index != -1) {
-        text.replace(index, length, "\n" + key + "=" + value + "\n");
-    } else {
-        text = text.trimmed();
-        text.append("\n" + key + "=" + value + "\n");
+struct EntryField {
+    qsizetype row;
+    bool exists;
+};
+
+EntryField findEntryField(const QStringList &lines, const QString &key)
+{
+    const QString prefix = key + '=';
+    bool inEntry = false;
+    for (qsizetype i = 0; i < lines.size(); ++i) {
+        const auto &line = lines.at(i);
+        const auto trimmed = QStringView(line).trimmed();
+        if (trimmed.startsWith('[')) {
+            if (inEntry) {
+                return {i, false};
+            }
+            inEntry = trimmed == QLatin1String("[Desktop Entry]");
+        } else if (inEntry && line.startsWith(prefix)) {
+            return {i, true};
+        }
     }
-    return text;
+    return {inEntry ? lines.size() - (lines.last().isEmpty() ? 1 : 0) : -1, false};
+}
+} // namespace
+
+QString DesktopUtils::entryValue(const QString &text, const QString &key)
+{
+    const auto lines = text.split('\n');
+    const auto field = findEntryField(lines, key);
+    return field.exists ? lines.at(field.row).mid(key.size() + 1).trimmed() : QString();
+}
+
+QString DesktopUtils::setEntryValue(const QString &text, const QString &key, const QString &value)
+{
+    auto lines = text.split('\n');
+    const auto field = findEntryField(lines, key);
+    if (field.row < 0) {
+        return text;
+    }
+    if (value.isNull()) {
+        if (field.exists) {
+            lines.removeAt(field.row);
+        }
+    } else {
+        QString line = key + '=' + value;
+        const auto &reference = lines.at(field.exists ? field.row : field.row - 1);
+        if (reference.endsWith('\r')) {
+            line += '\r';
+        }
+        if (field.exists) {
+            lines[field.row] = line;
+        } else {
+            lines.insert(field.row, line);
+            if (field.row == lines.size() - 1) {
+                lines.append(QString());
+            }
+        }
+    }
+    return lines.join('\n');
 }
 
 QString DesktopUtils::pickLocalizedNameForKeys(const QString &defaultName,

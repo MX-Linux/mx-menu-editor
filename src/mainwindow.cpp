@@ -80,16 +80,7 @@ constexpr auto UserDesktopDirectories = "/.local/share/desktop-directories/";
 
 // Cached regex patterns to avoid repeated construction
 const QRegularExpression regexTrailingSemicolon(QStringLiteral(";$"));
-const QRegularExpression regexIconFull(QStringLiteral("(^|\n)Icon=[^\n]*(\n|$)"));
-const QRegularExpression regexExecFull(QStringLiteral("(^|\n)Exec=[^\n]*(\n|$)"));
-const QRegularExpression regexCommentFull(QStringLiteral("(^|\n)Comment=[^\n]*(\n|$)"));
-const QRegularExpression regexCategoriesFull(QStringLiteral("(^|\n)Categories=[^\n]*(\n|$)"));
-const QRegularExpression regexNewlineOrEnd(QStringLiteral("(\n|$)"));
-const QRegularExpression regexStartupNotifyFull(QStringLiteral("(^|\n)StartupNotify=[^\n]*(\n|$)"));
-const QRegularExpression regexNoDisplayFull(QStringLiteral("(^|\n)NoDisplay=[^\n]*(\n|$)"));
-const QRegularExpression regexTerminalFull(QStringLiteral("(^|\n)Terminal=[^\n]*(\n|$)"));
 const QRegularExpression regexNotFilter(QStringLiteral("^(?!<Not>).*$"));
-const QRegularExpression regexNameFull(QStringLiteral("(^|\n)Name=[^\n]*(\n|$)"));
 }
 
 MainWindow::MainWindow(QWidget *parent)
@@ -746,7 +737,7 @@ void MainWindow::loadItem(QTreeWidgetItem *item, int /*unused*/)
         {
             QSignalBlocker editorBlocker(ui->advancedEditor);
             QSignalBlocker docBlocker(ui->advancedEditor->document());
-            ui->advancedEditor->setText(content);
+            ui->advancedEditor->setPlainText(content);
             ui->advancedEditor->document()->setModified(false);
             ui->advancedEditor->document()->clearUndoRedoStacks(QTextDocument::UndoAndRedoStacks);
         }
@@ -857,8 +848,8 @@ void MainWindow::changeIcon()
             return;
         }
         ui->pushSave->setEnabled(true);
-        ui->advancedEditor->setText(DesktopUtils::setEntryValue(
-            ui->advancedEditor->toPlainText(), regexIconFull, QStringLiteral("Icon"), selected));
+        ui->advancedEditor->setPlainText(DesktopUtils::setEntryValue(
+            ui->advancedEditor->toPlainText(), QStringLiteral("Icon"), selected));
         ui->labelIcon->setPixmap(QPixmap(selected));
     }
 }
@@ -874,8 +865,8 @@ void MainWindow::changeName()
     if (newName.isEmpty()) {
         return;
     }
-    ui->advancedEditor->setText(
-        DesktopUtils::setEntryValue(ui->advancedEditor->toPlainText(), regexNameFull, QStringLiteral("Name"), newName));
+    ui->advancedEditor->setPlainText(
+        DesktopUtils::setEntryValue(ui->advancedEditor->toPlainText(), QStringLiteral("Name"), newName));
 }
 
 void MainWindow::changeCommand()
@@ -889,8 +880,8 @@ void MainWindow::changeCommand()
     if (newCommand.isEmpty()) {
         return;
     }
-    ui->advancedEditor->setText(DesktopUtils::setEntryValue(
-        ui->advancedEditor->toPlainText(), regexExecFull, QStringLiteral("Exec"), newCommand));
+    ui->advancedEditor->setPlainText(DesktopUtils::setEntryValue(
+        ui->advancedEditor->toPlainText(), QStringLiteral("Exec"), newCommand));
 }
 
 void MainWindow::changeComment()
@@ -901,17 +892,8 @@ void MainWindow::changeComment()
         return;
     }
     ui->pushSave->setEnabled(true);
-    QString text = ui->advancedEditor->toPlainText();
-    if (!newComment.isEmpty()) {
-        text = DesktopUtils::setEntryValue(text, regexCommentFull, QStringLiteral("Comment"), newComment);
-    } else {
-        const auto match = regexCommentFull.match(text);
-        if (match.hasMatch()) {
-            const auto lineStart = match.capturedEnd(1);
-            text.remove(lineStart, match.capturedEnd() - lineStart);
-        }
-    }
-    ui->advancedEditor->setText(text);
+    ui->advancedEditor->setPlainText(DesktopUtils::setEntryValue(
+        ui->advancedEditor->toPlainText(), QStringLiteral("Comment"), newComment.isEmpty() ? QString() : newComment));
 }
 
 void MainWindow::enableDelete()
@@ -927,31 +909,11 @@ void MainWindow::delCategory()
     if (item.isNull()) {
         return;
     }
-    QString text = ui->advancedEditor->toPlainText();
-    const auto match = regexCategoriesFull.match(text);
-    if (match.hasMatch()) {
-        const int categoriesPos = text.indexOf(QLatin1String("Categories="), match.capturedStart());
-        if (categoriesPos != -1) {
-            const int lineEnd = text.indexOf(QLatin1Char('\n'), categoriesPos);
-            const int lineLength = (lineEnd == -1) ? (text.length() - categoriesPos) : (lineEnd - categoriesPos);
-            const QString line = text.mid(categoriesPos, lineLength);
-            const int equalsPos = line.indexOf(QLatin1Char('='));
-            QStringList categories;
-            if (equalsPos != -1) {
-                categories = line.mid(equalsPos + 1).split(QLatin1Char(';'), Qt::SkipEmptyParts);
-            }
-            categories.removeAll(item->text());
-            QString newLine = QStringLiteral("Categories=");
-            if (categories.isEmpty()) {
-                newLine.append(QLatin1Char(';'));
-            } else {
-                newLine.append(categories.join(QLatin1Char(';')));
-                newLine.append(QLatin1Char(';'));
-            }
-            text.replace(categoriesPos, lineLength, newLine);
-            ui->advancedEditor->setText(text);
-        }
-    }
+    const auto text = ui->advancedEditor->toPlainText();
+    auto categories = DesktopUtils::entryValue(text, QStringLiteral("Categories")).split(';', Qt::SkipEmptyParts);
+    categories.removeAll(item->text());
+    ui->advancedEditor->setPlainText(
+        DesktopUtils::setEntryValue(text, QStringLiteral("Categories"), categories.join(';') + ';'));
     if (ui->listWidgetEditCategories->count() == 0) {
         ui->pushDelete->setDisabled(true);
         ui->pushSave->setDisabled(true);
@@ -962,8 +924,8 @@ void MainWindow::changeNotify(bool checked)
 {
     ui->pushSave->setEnabled(true);
     const QString str = checked ? QStringLiteral("true") : QStringLiteral("false");
-    ui->advancedEditor->setText(DesktopUtils::setEntryValue(
-        ui->advancedEditor->toPlainText(), regexStartupNotifyFull, QStringLiteral("StartupNotify"), str));
+    ui->advancedEditor->setPlainText(DesktopUtils::setEntryValue(
+        ui->advancedEditor->toPlainText(), QStringLiteral("StartupNotify"), str));
 }
 
 // hide or show the item in the menu
@@ -971,24 +933,8 @@ void MainWindow::changeHide(bool checked)
 {
     ui->pushSave->setEnabled(true);
     const QString str = checked ? QStringLiteral("true") : QStringLiteral("false");
-    QString text = ui->advancedEditor->toPlainText().trimmed();
-    if (regexNoDisplayFull.match(text).hasMatch()) {
-        text = DesktopUtils::setEntryValue(text, regexNoDisplayFull, QStringLiteral("NoDisplay"), str);
-    } else {
-        // No NoDisplay= line yet; insert it right after the first Exec= to keep related keys grouped
-        // (some .desktop files have multiple Exec= lines, see readItem()).
-        QString newText;
-        bool inserted = false;
-        for (const auto &line : text.split(QStringLiteral("\n"))) {
-            newText.append(line + "\n");
-            if (!inserted && line.startsWith(QLatin1String("Exec="))) {
-                newText.append("NoDisplay=" + str + "\n");
-                inserted = true;
-            }
-        }
-        text = newText;
-    }
-    ui->advancedEditor->setText(text);
+    ui->advancedEditor->setPlainText(
+        DesktopUtils::setEntryValue(ui->advancedEditor->toPlainText(), QStringLiteral("NoDisplay"), str));
 }
 
 // change "run in terminal" setting
@@ -996,8 +942,8 @@ void MainWindow::changeTerminal(bool checked)
 {
     ui->pushSave->setEnabled(true);
     const QString str = checked ? QStringLiteral("true") : QStringLiteral("false");
-    ui->advancedEditor->setText(DesktopUtils::setEntryValue(
-        ui->advancedEditor->toPlainText(), regexTerminalFull, QStringLiteral("Terminal"), str));
+    ui->advancedEditor->setPlainText(DesktopUtils::setEntryValue(
+        ui->advancedEditor->toPlainText(), QStringLiteral("Terminal"), str));
 }
 
 // list categories of the displayed items
@@ -1072,27 +1018,12 @@ void MainWindow::addCategory(const QString &category)
     if (category.isEmpty()) {
         return;
     }
-    const auto str = category;
-    QString text = ui->advancedEditor->toPlainText();
-    int index = text.indexOf(regexCategoriesFull);
-    if (index != -1) {
-        index = text.indexOf(regexNewlineOrEnd, index + 1); // end of Categories line
-    } else {
-        // No Categories line found; append a fresh one at the end
-        text = text.trimmed();
-        text.append("\nCategories=;\n");
-        index = text.indexOf(regexCategoriesFull);
-        index = text.indexOf(regexNewlineOrEnd, index + 1);
-    }
-    if (ui->listWidgetEditCategories->findItems(str, Qt::MatchFixedString).isEmpty()) {
-        ui->pushSave->setEnabled(true);
-        text.insert(index, str + ";");
-        ui->listWidgetEditCategories->addItem(str);
-        ui->advancedEditor->setText(text);
+    if (ui->listWidgetEditCategories->findItems(category, Qt::MatchFixedString).isEmpty()) {
+        const auto text = ui->advancedEditor->toPlainText();
+        const auto categories = DesktopUtils::entryValue(text, QStringLiteral("Categories")) + category + ';';
+        ui->advancedEditor->setPlainText(DesktopUtils::setEntryValue(text, QStringLiteral("Categories"), categories));
+        ui->listWidgetEditCategories->addItem(category);
         ui->pushDelete->setEnabled(true);
-        if (ui->listWidgetEditCategories->count() == 0) {
-            ui->pushSave->setDisabled(true);
-        }
     }
 }
 
@@ -1131,19 +1062,7 @@ bool MainWindow::pushSave_clicked()
         ui->pushSave->setFocus(Qt::ShortcutFocusReason);
     }
     const QString editorText = ui->advancedEditor->toPlainText();
-    QString execCommand = ui->lineEditCommand->text().trimmed();
-    const QRegularExpressionMatch execMatch = regexExecFull.match(editorText);
-    if (execMatch.hasMatch()) {
-        const QString execLine = execMatch.captured();
-        const int idx = execLine.indexOf(QLatin1String("Exec="));
-        if (idx != -1) {
-            const auto extracted = execLine.mid(idx + 5).trimmed();
-            if (!extracted.isEmpty()) {
-                execCommand = extracted;
-                ui->lineEditCommand->setText(execCommand);
-            }
-        }
-    }
+    const QString execCommand = DesktopUtils::entryValue(editorText, QStringLiteral("Exec"));
 
     // Validate the Exec command before saving
     if (!AddAppDialog::confirmExecutableExists(this, execCommand)) {
@@ -1343,8 +1262,7 @@ void MainWindow::pushDuplicateApp_clicked()
     const auto newBaseName = DesktopUtils::uniqueCopyFileName(base_name, exists);
 
     const auto newName = ui->lineEditName->text() + tr(" (copy)");
-    const auto newContent = DesktopUtils::setEntryValue(ui->advancedEditor->toPlainText(), regexNameFull,
-                                                         QStringLiteral("Name"), newName);
+    const auto newContent = DesktopUtils::setEntryValue(ui->advancedEditor->toPlainText(), QStringLiteral("Name"), newName);
 
     if (!QFileInfo::exists(applicationsDir) && !QDir().mkpath(applicationsDir)) {
         QMessageBox::critical(this, tr("Error"), tr("Could not create the applications directory"));
