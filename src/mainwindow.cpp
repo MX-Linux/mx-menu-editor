@@ -1018,13 +1018,16 @@ void MainWindow::addCategory(const QString &category)
     if (category.isEmpty()) {
         return;
     }
-    if (ui->listWidgetEditCategories->findItems(category, Qt::MatchFixedString).isEmpty()) {
-        const auto text = ui->advancedEditor->toPlainText();
-        const auto categories = DesktopUtils::entryValue(text, QStringLiteral("Categories")) + category + ';';
-        ui->advancedEditor->setPlainText(DesktopUtils::setEntryValue(text, QStringLiteral("Categories"), categories));
-        ui->listWidgetEditCategories->addItem(category);
-        ui->pushDelete->setEnabled(true);
+    const auto text = ui->advancedEditor->toPlainText();
+    auto categories = DesktopUtils::entryValue(text, QStringLiteral("Categories")).split(';', Qt::SkipEmptyParts);
+    if (!categories.contains(category)) {
+        categories.append(category);
+        ui->advancedEditor->setPlainText(
+            DesktopUtils::setEntryValue(text, QStringLiteral("Categories"), categories.join(';') + ';'));
     }
+    ui->listWidgetEditCategories->clear();
+    ui->listWidgetEditCategories->addItems(categories);
+    ui->pushDelete->setEnabled(false);
 }
 
 // display add application message box
