@@ -1172,13 +1172,12 @@ void MainWindow::restartPanel()
 
 void MainWindow::pushAbout_clicked()
 {
-    this->hide();
     QMessageBox msgBox(
         QMessageBox::NoIcon, tr("About MX Menu Editor"),
         "<p align=\"center\"><b><h2>" + tr("MX Menu Editor") + "</h2></b></p><p align=\"center\">" + tr("Version: ")
             + VERSION + "</p><p align=\"center\"><h3>" + tr("Program for editing Xfce menu")
             + R"(</h3></p><p align="center"><a href="http://mxlinux.org">http://mxlinux.org</a><br /></p><p align="center">)"
-            + tr("Copyright (c) MX Linux") + "<br /><br /></p>");
+            + tr("Copyright (c) MX Linux") + "<br /><br /></p>", QMessageBox::NoButton, this);
     auto *btnLicense = msgBox.addButton(tr("License"), QMessageBox::HelpRole);
     auto *btnChangelog = msgBox.addButton(tr("Changelog"), QMessageBox::HelpRole);
     auto *btnCancel = msgBox.addButton(tr("Cancel"), QMessageBox::NoRole);
@@ -1224,7 +1223,6 @@ void MainWindow::pushAbout_clicked()
         changelog.setLayout(layout);
         changelog.exec();
     }
-    this->show();
 }
 
 void MainWindow::setEnabled(const QString & /*unused*/)
