@@ -794,7 +794,7 @@ void MainWindow::selectCommand()
 {
     const auto selected = QFileDialog::getOpenFileName(this, tr("Select executable file"), SystemBinPath);
     if (!selected.isEmpty()) {
-        ui->lineEditCommand->setText(selected);
+        ui->lineEditCommand->setText(DesktopUtils::encodeExecPath(selected));
         ui->pushSave->setEnabled(true);
         changeCommand();
     }

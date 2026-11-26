@@ -44,6 +44,7 @@ private slots:
     void categoryMatchPattern();
 
     // DesktopUtils::parseCommandExecutable - executable parsing
+    void encodeExecPath();
     void parseCommandExecutable_data();
     void parseCommandExecutable();
 
@@ -131,6 +132,16 @@ void TestDesktopUtils::categoryMatchPattern()
 
     const QRegularExpression re(DesktopUtils::categoryMatchPattern(category));
     QCOMPARE(re.match(line).hasMatch(), expectMatch);
+}
+
+void TestDesktopUtils::encodeExecPath()
+{
+    QCOMPARE(DesktopUtils::encodeExecPath("/bin/true"), "/bin/true");
+    QCOMPARE(DesktopUtils::encodeExecPath("/opt/My App/run"), "\"/opt/My App/run\"");
+    QCOMPARE(DesktopUtils::encodeExecPath("/opt/100%"), "/opt/100%%");
+    QCOMPARE(DesktopUtils::encodeExecPath("/opt/$run"), R"("/opt/\\$run")");
+    const QString path = QStringLiteral("/opt/My App/100% '\"\\`$ &\tend ");
+    QCOMPARE(DesktopUtils::parseCommandExecutable(DesktopUtils::encodeExecPath(path) + " --flag"), path);
 }
 
 void TestDesktopUtils::parseCommandExecutable_data()

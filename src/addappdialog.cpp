@@ -291,7 +291,7 @@ void AddAppDialog::selectCommand_clicked()
     if (selected.isEmpty()) {
         return;
     }
-    ui->lineEditCommand->setText(selected);
+    ui->lineEditCommand->setText(DesktopUtils::encodeExecPath(selected));
     updateSaveButtonState();
 }
 

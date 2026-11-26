@@ -61,6 +61,9 @@ namespace DesktopUtils
 // "Categories=" line, not as a substring of another category.
 [[nodiscard]] QString categoryMatchPattern(const QString &category);
 
+// Encodes a path selected in a file picker for use as the complete Exec command.
+[[nodiscard]] QString encodeExecPath(const QString &path);
+
 // Extracts the executable token (first word, respecting quotes/escapes) from an Exec=
 // command line.
 [[nodiscard]] QString parseCommandExecutable(const QString &command);

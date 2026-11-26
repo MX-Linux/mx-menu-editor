@@ -160,9 +160,24 @@ QString DesktopUtils::categoryMatchPattern(const QString &category)
     return QStringLiteral("Categories=(?:[^;]*;)*") + QRegularExpression::escape(category) + QStringLiteral("(?:;|$)");
 }
 
+QString DesktopUtils::encodeExecPath(const QString &path)
+{
+    // Quote the executable as one Exec argument, then escape it as a desktop-entry string.
+    static const QString reserved = QStringLiteral("\"'\\><~|&;$*?#()`");
+    const bool quote = std::ranges::any_of(path, [](QChar ch) {
+        return ch.isSpace() || reserved.contains(ch);
+    });
+    QString token = path;
+    if (quote) {
+        token.replace("\\", "\\\\").replace("\"", "\\\"").replace("`", "\\`").replace("$", "\\$");
+        token = '"' + token + '"';
+    }
+    return token.replace("%", "%%").replace("\\", "\\\\").replace('\t', "\\t").replace('\n', "\\n").replace('\r', "\\r");
+}
+
 QString DesktopUtils::parseCommandExecutable(const QString &command)
 {
-    // Parse command line respecting quotes (similar to shell parsing)
+    // Decode desktop-entry string escapes before interpreting Exec argument quoting.
     QString result;
     bool inSingleQuote = false;
     bool inDoubleQuote = false;
@@ -170,6 +185,15 @@ QString DesktopUtils::parseCommandExecutable(const QString &command)
 
     for (int i = 0; i < command.length(); ++i) {
         QChar ch = command.at(i);
+        if (ch == '\\' && i + 1 < command.size()) {
+            static const QString codes = QStringLiteral("\\stnr");
+            static const QString decoded = QStringLiteral("\\ \t\n\r");
+            const auto index = codes.indexOf(command.at(i + 1));
+            if (index >= 0) {
+                ch = decoded.at(index);
+                ++i;
+            }
+        }
 
         if (escaped) {
             result.append(ch);
@@ -192,7 +216,7 @@ QString DesktopUtils::parseCommandExecutable(const QString &command)
             continue;
         }
 
-        if (ch == QLatin1Char(' ') && !inSingleQuote && !inDoubleQuote) {
+        if (ch.isSpace() && !inSingleQuote && !inDoubleQuote) {
             // Found first complete token
             if (!result.isEmpty()) {
                 break;
@@ -203,7 +227,7 @@ QString DesktopUtils::parseCommandExecutable(const QString &command)
         result.append(ch);
     }
 
-    return result.trimmed();
+    return result.replace("%%", "%");
 }
 
 bool DesktopUtils::checkExecutableExists(const QString &executable)
