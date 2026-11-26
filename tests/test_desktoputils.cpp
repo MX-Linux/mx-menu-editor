@@ -37,6 +37,7 @@ private slots:
     void setEntryValue_replacesExistingKey();
     void setEntryValue_appendsWhenKeyMissing();
     void editMainGroupOnly();
+    void localizedCopyName();
 
     // DesktopUtils::categoryMatchPattern - exact category matching
     void categoryMatchPattern_data();
@@ -94,6 +95,14 @@ void TestDesktopUtils::editMainGroupOnly()
     QCOMPARE(DesktopUtils::entryValue(entry + actions, "Name"), "App");
     QVERIFY(DesktopUtils::entryValue(entry + actions, "Icon").isEmpty());
     QCOMPARE(DesktopUtils::setEntryValue(actions, "Name", "Changed"), actions);
+}
+
+void TestDesktopUtils::localizedCopyName()
+{
+    const QString action = "[Desktop Action New]\nName[fr]=Nouveau\n";
+    const QString launcher = "[Desktop Entry]\nName[fr]=Éditeur\nName=Editor\nName[de]=Editor\nComment[fr]=Texte\n";
+    QCOMPARE(DesktopUtils::renamedCopy(launcher + action, "Editor (copy)"),
+             "[Desktop Entry]\nName=Editor (copy)\nComment[fr]=Texte\n" + action);
 }
 
 void TestDesktopUtils::categoryMatchPattern_data()

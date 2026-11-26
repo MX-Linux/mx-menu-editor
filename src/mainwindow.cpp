@@ -1266,7 +1266,7 @@ void MainWindow::pushDuplicateApp_clicked()
     const auto newBaseName = DesktopUtils::uniqueCopyFileName(base_name, exists);
 
     const auto newName = ui->lineEditName->text() + tr(" (copy)");
-    const auto newContent = DesktopUtils::setEntryValue(ui->advancedEditor->toPlainText(), QStringLiteral("Name"), newName);
+    const auto newContent = DesktopUtils::renamedCopy(ui->advancedEditor->toPlainText(), newName);
 
     if (!QFileInfo::exists(applicationsDir) && !QDir().mkpath(applicationsDir)) {
         QMessageBox::critical(this, tr("Error"), tr("Could not create the applications directory"));

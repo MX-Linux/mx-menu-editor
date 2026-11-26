@@ -40,6 +40,9 @@ namespace DesktopUtils
 [[nodiscard]] QString entryValue(const QString &text, const QString &key);
 [[nodiscard]] QString setEntryValue(const QString &text, const QString &key, const QString &value);
 
+// Sets the default copy name and removes localized names that would take precedence.
+[[nodiscard]] QString renamedCopy(const QString &text, const QString &name);
+
 // Picks the best display name given a set of candidate locale keys, most preferred
 // first: a localized "Name[locale]=" matching one of the keys, falling back to the
 // plain "Name=", falling back to any localized name at all if even that is missing.

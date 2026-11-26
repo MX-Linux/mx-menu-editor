@@ -92,6 +92,25 @@ QString DesktopUtils::setEntryValue(const QString &text, const QString &key, con
     return lines.join('\n');
 }
 
+QString DesktopUtils::renamedCopy(const QString &text, const QString &name)
+{
+    const auto lines = setEntryValue(text, QStringLiteral("Name"), name).split('\n');
+    QStringList copy;
+    copy.reserve(lines.size());
+    bool inEntry = false;
+    for (const auto &line : lines) {
+        const auto trimmed = QStringView(line).trimmed();
+        if (trimmed.startsWith('[')) {
+            inEntry = trimmed == QLatin1String("[Desktop Entry]");
+        }
+        if (inEntry && line.startsWith(QLatin1String("Name[")) && line.contains(QLatin1String("]="))) {
+            continue;
+        }
+        copy.append(line);
+    }
+    return copy.join('\n');
+}
+
 QString DesktopUtils::pickLocalizedNameForKeys(const QString &defaultName,
                                                 const QHash<QString, QString> &localizedNames,
                                                 const QStringList &localeKeys)
