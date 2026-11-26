@@ -115,7 +115,6 @@ MainWindow::MainWindow(QWidget *parent)
     all_usr_desktop_files = listDesktopFiles(QLatin1String(""), systemApplicationsPath());
     updateLocalBasenamesCache();
 
-    resetInterface();
     loadMenuFiles();
 
     connect(ui->treeWidget, &QTreeWidget::itemSelectionChanged, this, &MainWindow::loadApps);
@@ -160,6 +159,7 @@ void MainWindow::loadMenuFiles()
     hashCategories.clear();
     hashExclude.clear();
     hashInclude.clear();
+    resetInterface();
     ui->treeWidget->clear();
 
     const QString &homePath = QDir::homePath();
@@ -243,6 +243,7 @@ void MainWindow::loadMenuFiles()
 
 void MainWindow::populateAllCategories()
 {
+    resetInterface();
     for (int i = 0; i < ui->treeWidget->topLevelItemCount(); ++i) {
         auto *categoryItem = ui->treeWidget->topLevelItem(i);
         populateCategory(categoryItem);
@@ -335,6 +336,9 @@ void MainWindow::insertAppIntoCategories(const QString &filePath, const QStringL
             auto *child = categoryItem->child(j);
             QFileInfo childInfo(child->text(1));
             if (childInfo.fileName() == baseName) {
+                if (child == current_item) {
+                    resetInterface();
+                }
                 delete categoryItem->takeChild(j);
                 break;
             }
@@ -667,12 +671,8 @@ void MainWindow::loadItem(QTreeWidgetItem *item, int /*unused*/)
 // Qt 6: pixmap() returns by value, use isNull() to check if empty
     // execute if not topLevel item is selected
     if (item->parent() != nullptr) {
-        if (ui->pushSave->isEnabled() && !save()) {
-            return;
-        }
         const auto file_name = item->text(1).trimmed();
         resetInterface();
-        enableEdit();
 
         const QSize size = ui->labelIcon->size();
 
@@ -738,6 +738,10 @@ void MainWindow::loadItem(QTreeWidgetItem *item, int /*unused*/)
                 }
             }
         }
+        if (file.error() != QFileDevice::NoError) {
+            resetInterface();
+            return;
+        }
         file.close();
         {
             QSignalBlocker editorBlocker(ui->advancedEditor);
@@ -747,9 +751,9 @@ void MainWindow::loadItem(QTreeWidgetItem *item, int /*unused*/)
             ui->advancedEditor->document()->clearUndoRedoStacks(QTextDocument::UndoAndRedoStacks);
         }
         advancedEditorBaseline = content;
-        QTreeWidgetItem *currentItem = ui->treeWidget->currentItem();
+        current_item = item;
+        enableEdit();
         updateRestoreButtonState(file_name);
-        current_item = currentItem; // remember the current_item in case user selects another item before saving
     }
 }
 
@@ -766,6 +770,7 @@ void MainWindow::selectCommand()
 
 void MainWindow::resetInterface()
 {
+    current_item = nullptr;
     ui->listWidgetEditCategories->clear();
     {
         QSignalBlocker editorBlocker(ui->advancedEditor);
@@ -1378,8 +1383,7 @@ void MainWindow::findReloadItem(const QString &baseName)
                 item->setText(1, localPath);
                 item->setData(0, Qt::UserRole, "restore");
                 ui->treeWidget->setCurrentItem(item);
-                current_item = item;
-                updateRestoreButtonState(item->text(1));
+
                 // Ensure parent category is expanded so the item is visible
                 auto *parent = item->parent();
                 if (parent != nullptr) {
@@ -1389,8 +1393,7 @@ void MainWindow::findReloadItem(const QString &baseName)
                 item->setText(1, usrPath);
                 item->setData(0, Qt::UserRole, QVariant());
                 ui->treeWidget->setCurrentItem(item);
-                current_item = item;
-                updateRestoreButtonState(item->text(1));
+
                 // Ensure parent category is expanded so the item is visible
                 auto *parent = item->parent();
                 if (parent != nullptr) {
