@@ -356,7 +356,7 @@ void MainWindow::insertAppIntoCategories(const QString &filePath, const QStringL
 void MainWindow::setConnections()
 {
     connect(ui->pushAbout, &QPushButton::clicked, this, &MainWindow::pushAbout_clicked);
-    connect(ui->pushCancel, &QPushButton::clicked, this, &MainWindow::pushCancel_clicked);
+    connect(ui->pushCancel, &QPushButton::clicked, this, &MainWindow::reject);
     connect(ui->pushHelp, &QPushButton::clicked, this, &MainWindow::pushHelp_clicked);
     connect(ui->pushRestoreApp, &QPushButton::clicked, this, &MainWindow::pushRestoreApp_clicked);
     connect(ui->pushDuplicateApp, &QPushButton::clicked, this, &MainWindow::pushDuplicateApp_clicked);
@@ -1267,13 +1267,12 @@ void MainWindow::pushHelp_clicked()
     displayDoc(path, tr("MX Menu Editor Help"), true);
 }
 
-// Cancel button clicked
-void MainWindow::pushCancel_clicked()
+void MainWindow::reject()
 {
     if (ui->pushSave->isEnabled() && !save()) {
         return;
     }
-    QApplication::quit();
+    QDialog::reject();
 }
 
 // ask whether to save edits or not

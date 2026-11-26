@@ -76,6 +76,7 @@ public:
     void setConnections();
 
 public slots:
+    void reject() override;
     void addAppMsgBox();
     void addCategory(const QString &category);
     void addCategoryMsgBox();
@@ -102,7 +103,6 @@ public slots:
 private slots:
     static void pushHelp_clicked();
     void pushAbout_clicked();
-    void pushCancel_clicked();
     void pushRestoreApp_clicked();
     void pushDuplicateApp_clicked();
     bool pushSave_clicked();
