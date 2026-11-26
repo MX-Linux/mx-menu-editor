@@ -50,6 +50,7 @@
 #include <QProcess>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QSaveFile>
 #include <QScreen>
 #include <QSet>
 #include <QSignalBlocker>
@@ -413,6 +414,38 @@ QString MainWindow::localApplicationsPath()
 QString MainWindow::systemApplicationsPath()
 {
     return QStringLiteral("/usr/share/applications");
+}
+
+QString MainWindow::createLocalLauncher(const QString &baseName, const QByteArray &contents, bool useCopyName)
+{
+    const QDir local(localApplicationsPath());
+    const QDir system(systemApplicationsPath());
+    const auto occupied = [&](const QString &name) {
+        const QFileInfo localFile(local.filePath(name));
+        const QFileInfo systemFile(system.filePath(name));
+        return localFile.exists() || localFile.isSymLink() || systemFile.exists() || systemFile.isSymLink();
+    };
+    QString candidate = baseName;
+    QFile out;
+    for (;;) {
+        if (useCopyName || occupied(candidate)) {
+            candidate = DesktopUtils::uniqueCopyFileName(baseName, occupied);
+        }
+        out.setFileName(local.filePath(candidate));
+        if (out.open(QIODevice::WriteOnly | QIODevice::NewOnly)) {
+            break;
+        }
+        if (!occupied(candidate)) {
+            return {};
+        }
+    }
+    if (out.write(contents) != contents.size() || !out.flush()) {
+        out.close();
+        QFile::remove(out.fileName());
+        return {};
+    }
+    out.close();
+    return out.fileName();
 }
 
 void MainWindow::updateLocalBasenamesCache()
@@ -1082,8 +1115,9 @@ bool MainWindow::pushSave_clicked()
         return false;
     }
     const auto out_name = applicationsDir + "/" + base_name;
-    QFile out(out_name);
-    if (!out.open(QFile::WriteOnly | QFile::Text)) {
+    const QByteArray contents = editorText.toUtf8();
+    QSaveFile out(out_name);
+    if (!out.open(QIODevice::WriteOnly) || out.write(contents) != contents.size() || !out.commit()) {
         QMessageBox::critical(this, tr("Error"), tr("Could not save the file"));
         return false;
     }
@@ -1091,9 +1125,6 @@ bool MainWindow::pushSave_clicked()
         all_local_desktop_files << out_name;
         updateLocalBasenamesCache();
     }
-    out.write(editorText.toUtf8());
-    out.flush();
-    out.close();
     {
         QSignalBlocker editorBlocker(ui->advancedEditor);
         QSignalBlocker docBlocker(ui->advancedEditor->document());
@@ -1259,12 +1290,6 @@ void MainWindow::pushDuplicateApp_clicked()
     const auto base_name = QFileInfo(current_item->text(1)).fileName();
     const auto applicationsDir = localApplicationsPath();
 
-    const auto exists = [&applicationsDir](const QString &candidate) {
-        return QFileInfo::exists(applicationsDir + "/" + candidate)
-            || QFileInfo::exists(systemApplicationsPath() + "/" + candidate);
-    };
-    const auto newBaseName = DesktopUtils::uniqueCopyFileName(base_name, exists);
-
     const auto newName = ui->lineEditName->text() + tr(" (copy)");
     const auto newContent = DesktopUtils::renamedCopy(ui->advancedEditor->toPlainText(), newName);
 
@@ -1272,15 +1297,11 @@ void MainWindow::pushDuplicateApp_clicked()
         QMessageBox::critical(this, tr("Error"), tr("Could not create the applications directory"));
         return;
     }
-    const auto out_name = applicationsDir + "/" + newBaseName;
-    QFile out(out_name);
-    if (!out.open(QFile::WriteOnly | QFile::Text)) {
+    const auto out_name = createLocalLauncher(base_name, newContent.toUtf8(), true);
+    if (out_name.isEmpty()) {
         QMessageBox::critical(this, tr("Error"), tr("Could not save the file"));
         return;
     }
-    out.write(newContent.toUtf8());
-    out.flush();
-    out.close();
 
     if (!all_local_desktop_files.contains(out_name)) {
         all_local_desktop_files << out_name;
@@ -1295,7 +1316,7 @@ void MainWindow::pushDuplicateApp_clicked()
 
     restartPanel();
     filterTree(ui->lineEditSearch->text());
-    findReloadItem(newBaseName);
+    findReloadItem(QFileInfo(out_name).fileName());
 }
 
 // find and reload item

@@ -63,6 +63,8 @@ public:
     [[nodiscard]] static QStringList listMenuFiles();
     [[nodiscard]] static QString localApplicationsPath();
     [[nodiscard]] static QString systemApplicationsPath();
+    [[nodiscard]] static QString createLocalLauncher(const QString &baseName, const QByteArray &contents,
+                                                     bool useCopyName = false);
     void displayList(QStringList menuItems);
     void filterTree(const QString &query);
     void findReloadItem(const QString &baseName);
