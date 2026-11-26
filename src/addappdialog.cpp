@@ -209,17 +209,31 @@ bool AddAppDialog::pushSave_clicked()
     }
 
     QString output;
-    QString fileName = DesktopUtils::sanitizeFileName(appName) + ".desktop";
+    const QString fileName = DesktopUtils::sanitizeFileName(appName) + ".desktop";
     const QString appDir = MainWindow::localApplicationsPath();
-    QString outName = appDir + QLatin1Char('/') + fileName;
     if (!QDir().exists(appDir) && !QDir().mkpath(appDir)) {
         QMessageBox::critical(this, tr("Error"), tr("Could not create application directory"));
         return false;
     }
-    QFile out(outName);
-    if (!out.open(QFile::WriteOnly | QFile::Text)) {
-        QMessageBox::critical(this, tr("Error"), tr("Could not save the file"));
-        return false;
+    const auto occupied = [&appDir](const QString &name) {
+        const QFileInfo local(QDir(appDir).filePath(name));
+        const QFileInfo system(QDir(MainWindow::systemApplicationsPath()).filePath(name));
+        return local.exists() || local.isSymLink() || system.exists() || system.isSymLink();
+    };
+    QFile out;
+    QString candidate = fileName;
+    for (;;) {
+        if (occupied(candidate)) {
+            candidate = DesktopUtils::uniqueCopyFileName(fileName, occupied);
+        }
+        out.setFileName(QDir(appDir).filePath(candidate));
+        if (out.open(QIODevice::WriteOnly | QIODevice::NewOnly | QIODevice::Text)) {
+            break;
+        }
+        if (!occupied(candidate)) {
+            QMessageBox::critical(this, tr("Error"), tr("Could not save the file"));
+            return false;
+        }
     }
     output = QStringLiteral("[Desktop Entry]\n");
     output.append("Name=" + ui->lineEditName->text() + "\n");
@@ -251,7 +265,7 @@ bool AddAppDialog::pushSave_clicked()
     const QStringList savedCategories = selectedCategories();
     MainWindow::restartPanel();
     resetInterface();
-    emit appSaved(outName, savedCategories);
+    emit appSaved(out.fileName(), savedCategories);
     accept();
     return true;
 }
