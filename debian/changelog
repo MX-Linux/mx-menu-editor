@@ -1,3 +1,27 @@
+mx-menu-editor (26.11) mx; urgency=medium
+
+  * Run the menu editor on x86-64 Linux using the AppImage from GitHub
+    Releases, with translations and offline help included.
+  * Keep existing launchers intact when a new launcher has the same name or
+    when a save fails.
+  * Save or delete the selected launcher even when another folder contains
+    a launcher with the same filename.
+  * Save the name, command, or comment still being typed when pressing Ctrl+S.
+  * Ask about unsaved edits when closing the window or pressing Escape, and
+    ask only once when canceling a switch to another launcher.
+  * Keep a launcher's command when clearing its comment and preserve its
+    extra actions when using the Quick Editor.
+  * Keep applications in their existing categories when adding a category
+    and preserve pending edits when removing the last one.
+  * Show each launcher once in the menus that include it, including menus
+    that list individual applications by name.
+  * Give duplicated launchers distinct names in translated menus.
+  * Launch programs selected with the file picker even when their paths
+    contain spaces or special characters.
+  * Keep the editor visible if the changelog cannot be opened.
+
+ -- Adrian <adrian@mxlinux.org>  Fri, 27 Nov 2026 16:13:33 -0500
+
 mx-menu-editor (26.09) mx; urgency=medium
 
   * Add a button to duplicate a menu entry, to create multiple launchers for
