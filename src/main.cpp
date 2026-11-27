@@ -23,17 +23,25 @@
  **********************************************************************/
 
 #include <QApplication>
+#include <QByteArrayView>
 #include <QIcon>
 #include <QLibraryInfo>
 #include <QLocale>
 #include <QMessageBox>
 #include <QTranslator>
+#include <cstdio>
 #include <unistd.h>
 
+#include "appsharepath.h"
 #include "mainwindow.h"
 
 int main(int argc, char *argv[])
 {
+    if (argc == 2 && QByteArrayView(argv[1]) == "--version") {
+        std::puts("mx-menu-editor " VERSION);
+        return EXIT_SUCCESS;
+    }
+
     if (qEnvironmentVariableIsEmpty("DISPLAY") && qEnvironmentVariableIsEmpty("WAYLAND_DISPLAY")
         && qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM")) {
         qWarning("mx-menu-editor: no display available (DISPLAY and WAYLAND_DISPLAY are both unset); "
@@ -49,7 +57,7 @@ int main(int argc, char *argv[])
     }
 
     QApplication app(argc, argv);
-    QApplication::setWindowIcon(QIcon::fromTheme(QApplication::applicationName()));
+    QApplication::setWindowIcon(QIcon::fromTheme(QApplication::applicationName(), QIcon(QStringLiteral(":/icons/logo.png"))));
     QApplication::setOrganizationName(QStringLiteral("MX-Linux"));
 
     QTranslator qtTran;
@@ -64,8 +72,7 @@ int main(int argc, char *argv[])
     }
 
     QTranslator appTran;
-    const QString localePath
-        = QStringLiteral("/usr/share/") + QApplication::applicationName() + QStringLiteral("/locale");
+    const QString localePath = appSharePath(QStringLiteral("mx-menu-editor/locale"));
     if (appTran.load(QApplication::applicationName() + "_" + QLocale::system().name(), localePath)) {
         QApplication::installTranslator(&appTran);
     }

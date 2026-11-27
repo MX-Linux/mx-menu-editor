@@ -124,6 +124,11 @@ add_executable(mx-menu-editor
     ${RESOURCE_FILES}
 )
 
+option(APPIMAGE_BUILD "Load packaged data relative to the executable" OFF)
+if(APPIMAGE_BUILD)
+    target_compile_definitions(mx-menu-editor PRIVATE APPIMAGE_BUILD)
+endif()
+
 # Link Qt6 libraries
 target_link_libraries(mx-menu-editor
     Qt6::Core

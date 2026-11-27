@@ -24,6 +24,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
+#include "appsharepath.h"
 #include "desktoputils.h"
 #include "docviewer.h"
 
@@ -72,7 +73,6 @@ constexpr auto SystemMenuFile = "/etc/xdg/menus/xfce-applications.menu";
 constexpr auto SystemDesktopDirectories = "/usr/share/desktop-directories/";
 constexpr auto SystemBinPath = "/usr/bin";
 constexpr auto SystemIconsPath = "/usr/share/icons";
-constexpr auto SystemDocPath = "/usr/share/doc/";
 constexpr auto SystemPixmapsPath = "/usr/share/pixmaps";
 
 // User paths (relative to home directory)
@@ -1186,7 +1186,7 @@ void MainWindow::pushAbout_clicked()
     msgBox.exec();
 
     if (msgBox.clickedButton() == btnLicense) {
-        displayDoc(QString(SystemDocPath) + QStringLiteral("mx-menu-editor/license.html"),
+        displayDoc(appSharePath(QStringLiteral("doc/mx-menu-editor/license.html")),
                    tr("%1 License").arg(this->windowTitle()));
     } else if (msgBox.clickedButton() == btnChangelog) {
         QDialog changelog(this);
@@ -1199,8 +1199,7 @@ void MainWindow::pushAbout_clicked()
         QProcess process;
         process.start(QStringLiteral("gzip"),
                       QStringList {QStringLiteral("-dc"),
-                                   QString(SystemDocPath) + QFileInfo(QCoreApplication::applicationFilePath()).fileName()
-                                       + "/changelog.gz"});
+                                   appSharePath(QStringLiteral("doc/mx-menu-editor/changelog.gz"))});
         if (!process.waitForFinished(3000)) {
             process.kill();
             process.waitForFinished(1000);
@@ -1232,7 +1231,7 @@ void MainWindow::setEnabled(const QString & /*unused*/)
 
 void MainWindow::pushHelp_clicked()
 {
-    const auto path = QString(SystemDocPath) + QStringLiteral("mx-menu-editor/mx-menu-editor.html");
+    const auto path = appSharePath(QStringLiteral("doc/mx-menu-editor/mx-menu-editor.html"));
     displayDoc(path, tr("MX Menu Editor Help"), true);
 }
 
